@@ -1,0 +1,42 @@
+version: 2
+jobs:
+  install:
+    docker:
+      - image: circleci/node:carbon
+    environment:
+      NODE_ENV: not-production
+    steps:
+      - checkout
+      - run:
+          name: 'Install dependencies'
+          command: 'yarn install'
+      - save_cache:
+          name: 'Cache node_modules'
+          key: node_modules-{{ checksum "yarn.lock" }}
+          paths: node_modules
+  test:
+    docker:
+      - image: circleci/node:carbon
+    steps:
+      - checkout
+      - restore_cache:
+          name: 'Restore node_modules cache'
+          key: node_modules-{{ checksum "yarn.lock" }}
+      - run:
+          name: 'Run test'
+          command: 'yarn run test'
+
+workflows:
+  version: 2
+
+  test-pr:
+    jobs:
+      - install:
+          filters:
+            branches:
+              ignore:
+                - master
+                - develop
+      - test:
+          requires:
+            - install
