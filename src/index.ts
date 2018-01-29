@@ -1,15 +1,17 @@
-import * as debug from 'debug';
+import * as logger from 'heroku-logger';
 import * as SocketIO from 'socket.io';
 
-const log = debug('swift');
-
 const io = SocketIO();
-io.listen(3434);
+
+const port = process.env.PORT || 3434;
+io.listen(port);
+logger.info(`Starting socket.io on port ${port}.`);
 
 io.on('connection', (socket) => {
-	log('got connection', socket.id);
+	logger.info(`Client connected: ${socket.id}.`);
 
 	socket.on('data', (msg) => {
-		log('message', msg);
+		logger.info(`received messaged`, msg);
+		socket.emit('data', msg);
 	});
 });
