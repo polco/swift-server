@@ -7,10 +7,10 @@
 	"license": "MIT",
 	"private": false,
 	"dependencies": {
-		"@types/debug": "^0.0.30",
+		"@types/heroku-logger": "^0.1.0",
 		"@types/node": "^9.3.0",
 		"@types/socket.io": "^1.4.31",
-		"debug": "^3.1.0",
+		"heroku-logger": "^0.3.0",
 		"socket.io": "^2.0.4",
 		"tslint": "^5.9.1",
 		"typescript": "^2.6.2"
@@ -23,9 +23,9 @@
 	},
 	"scripts": {
 		"start": "node dist/index.js",
-		"dev": "DEBUG=swift* && tsc-watch --onSuccess \"node --stack-trace-limit=1000 dist\"",
-		"build": "tsc",
+		"dev": "tsc-watch --onSuccess \"node --stack-trace-limit=1000 dist\"",
+		"compile": "tsc",
 		"test": "tslint 'src/**/*.ts?(x)' './*.ts' -t stylish",
-		"heroku-postbuild": "npm run build"
+		"heroku-postbuild": "npm run compile"
 	}
 }

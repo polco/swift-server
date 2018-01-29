@@ -26,6 +26,23 @@ jobs:
           name: 'Run test'
           command: 'yarn run test'
 
+  deploy-to-heroku:
+    docker:
+      - image: circleci/node:carbon
+    steps:
+      - checkout
+      - run:
+          name: 'Setup Heroku'
+          command: bash ./scripts/setup-heroku.sh
+      - add_ssh_keys:
+          fingerprints:
+            - "19:bb:c1:72:c3:ec:56:33:93:7d:71:f2:9a:5f:da:fa"
+      - run:
+          name: Deploy Master to Heroku
+          command: |
+            git push --force git@heroku.com:swift-gateway.git HEAD:refs/heads/master
+            heroku run python manage.py deploy --app 'swift-gateway'
+
 workflows:
   version: 2
 
@@ -40,3 +57,11 @@ workflows:
       - test:
           requires:
             - install
+
+  deploy:
+    jobs:
+      - deploy-to-heroku:
+          filters:
+            branches:
+              only:
+                - master
