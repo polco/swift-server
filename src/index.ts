@@ -6,7 +6,7 @@ import * as https from 'https';
 import * as SocketIO from 'socket.io';
 
 const app = express();
-const server = process.env.NODE_ENV === 'developement'
+const server = process.env.NODE_ENV === 'development'
 	? https.createServer({
 		ca: fs.readFileSync('./ssl/cert.pem'),
 		cert: fs.readFileSync('./ssl/cert.pem'),
@@ -29,17 +29,14 @@ io.on('connection', (socket) => {
 	logger.info(`Client connected: ${socket.id}.`);
 	sockets[socket.id] = socket;
 
-	socket.on('data', (msg) => {
-		logger.info(`received messaged`, msg);
-		const remoteSocket = sockets[msg.remoteId];
+	socket.on('data', (remoteId: string, data: any) => {
+		logger.info('received data from ' + remoteId, data);
+		const remoteSocket = sockets[remoteId];
 		if (!remoteSocket) {
-			return logger.error('unknown remoteId', msg.remoteId);
+			return logger.error('unknown remoteId', remoteId as any);
 		}
 
-		remoteSocket.emit('data', {
-			data: msg.data,
-			fromId: socket.id
-		});
+		remoteSocket.emit('data', socket.id, data);
 	});
 
 	socket.on('disconnect', () => {
