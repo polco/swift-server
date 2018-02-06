@@ -23,24 +23,43 @@ const io = SocketIO();
 io.listen(server);
 logger.info(`Starting socket.io on port ${port}.`);
 
-const sockets: { [id: string]: SocketIO.Socket } = {};
+const sockets: { [socketId: string]: SocketIO.Socket } = {};
+const sessionIdsPerSocketId: { [socketId: string]: string[] } = {};
+const socketIdPerSessionId: { [sessionId: string]: string } = {};
 
 io.on('connection', (socket) => {
-	logger.info(`Client connected: ${socket.id}.`);
 	sockets[socket.id] = socket;
+	sessionIdsPerSocketId[socket.id] = [];
+	logger.info(`Client connected: ${socket.id}.`);
 
-	socket.on('data', (remoteId: string, data: any) => {
-		logger.info('received data from ' + remoteId, data);
-		const remoteSocket = sockets[remoteId];
+	socket.on('data', (remoteSocketId: string, sessionId: string, data: any) => {
+		logger.info('received data for session ' + sessionId);
+		const remoteSocket = sockets[remoteSocketId || socketIdPerSessionId[sessionId]];
 		if (!remoteSocket) {
-			return logger.error('unknown remoteId', remoteId as any);
+			return logger.error('unknown socketId / sessionId', { remoteSocketId, sessionId });
 		}
 
-		remoteSocket.emit('data', socket.id, data);
+		remoteSocket.emit('data', socket.id, sessionId, data);
 	});
 
 	socket.on('disconnect', () => {
 		logger.info(`Client disconnected: ${socket.id}.`);
 		delete sockets[socket.id];
+		const sessions = sessionIdsPerSocketId[socket.id];
+		sessions.forEach(sessionId => delete socketIdPerSessionId[sessionId]);
+		delete sessionIdsPerSocketId[socket.id];
+	});
+
+	socket.on('openSession', (sessionId: string) => {
+		logger.info(`Open session ${sessionId} for ${socket.id}.`);
+		socketIdPerSessionId[sessionId] = socket.id;
+		sessionIdsPerSocketId[socket.id].push(sessionId);
+	});
+
+	socket.on('closeSession', (sessionId: string) => {
+		logger.info(`Close session ${sessionId} for ${socket.id}.`);
+		delete socketIdPerSessionId[sessionId];
+		const index = sessionIdsPerSocketId[socket.id].indexOf(sessionId);
+		if (index !== -1) { sessionIdsPerSocketId[socket.id].splice(index, 1); }
 	});
 });

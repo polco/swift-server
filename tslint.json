@@ -60,7 +60,8 @@
             "check-type"
         ],
         "no-var-requires": false,
-        "trailing-comma": false
+        "trailing-comma": false,
+        "arrow-parens": false
     },
     "rulesDirectory": []
 }
