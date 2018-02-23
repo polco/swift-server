@@ -24,47 +24,60 @@ io.listen(server);
 logger.info(`Starting socket.io on port ${port}.`);
 
 const sockets: { [socketId: string]: SocketIO.Socket } = {};
-const userIdPerSessionId: { [sessionId: string]: string} = {};
-const socketPerUserId: { [userId: string]: SocketIO.Socket } = {};
+const socketPerSessionId: { [sessionId: string]: SocketIO.Socket} = {};
+const sessionIdsPerSocketId: {[socketId: string]: string[]} = {};
 
 io.on('connection', (socket) => {
 	sockets[socket.id] = socket;
-	const userId = socket.handshake.query.userId;
-	socketPerUserId[userId] = socket;
-	logger.info(`Client connected: ${socket.id}, userId: ${userId}.`);
+	logger.info(`Client connected: ${socket.id}.`);
 
-	socket.on('data', (remoteUserId: string, data: any) => {
-		logger.info('received data for userId ' + remoteUserId);
-		const remoteSocket = socketPerUserId[remoteUserId];
+	socket.on('data', (remoteSocketId: string, data: any) => {
+		logger.info('received data for remoteSocketId ' + remoteSocketId);
+		const remoteSocket = sockets[remoteSocketId];
 		if (!remoteSocket) {
-			return logger.error('unknown userId: ' + remoteUserId);
+			return logger.error('unknown remoteSocketId: ' + remoteSocketId);
 		}
 
-		remoteSocket.emit('data', userId, data);
+		remoteSocket.emit('data', socket.id, data);
 	});
 
 	socket.on('disconnect', () => {
 		logger.info(`Client disconnected: ${socket.id}.`);
 		delete sockets[socket.id];
-		delete socketPerUserId[userId];
+		const sessionIds = sessionIdsPerSocketId[socket.id];
+		if (sessionIds) {
+			sessionIds.forEach(sessionId => delete socketPerSessionId[sessionId]);
+			delete sessionIdsPerSocketId[socket.id];
+		}
 	});
 
 	socket.on('openSession', (sessionId: string) => {
-		logger.info(`${userId} opened the sessions ${sessionId}.`);
-		userIdPerSessionId[sessionId] = userId;
+		logger.info(`${socket.id} opened the sessions ${sessionId}.`);
+		if (!sessionIdsPerSocketId[socket.id]) { sessionIdsPerSocketId[socket.id] = []; }
+		sessionIdsPerSocketId[socket.id].push(sessionId);
+		socketPerSessionId[sessionId] = socket;
 	});
 
 	socket.on('closeSession', (sessionId: string) => {
-		logger.info(`${userId} closed the sessions ${sessionId}.`);
-		delete userIdPerSessionId[sessionId];
+		logger.info(`${socket.id} closed the sessions ${sessionId}.`);
+		delete socketPerSessionId[sessionId];
+		const sessionIds = sessionIdsPerSocketId[socket.id];
+		if (sessionIds) {
+			const index = sessionIds.indexOf(sessionId);
+			if (index !== -1) {
+				sessionIds.splice(index, 1);
+				if (sessionIds.length === 0) {
+					delete sessionIdsPerSocketId[socket.id];
+				}
+			}
+		}
 	});
 
 	socket.on('join', (sessionId: string) => {
-		const remoteUserId = userIdPerSessionId[sessionId];
-		logger.info(`Join session ${sessionId}, user ${remoteUserId}.`);
-		const remoteSocket = socketPerUserId[remoteUserId];
-		if (!remoteSocket) { return logger.error('unknown userId: ' + remoteUserId); }
-		remoteSocket.emit('join', sessionId, userId);
-		socket.emit('sessionUser', sessionId, remoteUserId);
+		const remoteSocket = socketPerSessionId[sessionId];
+		if (!remoteSocket) { return logger.error('unknown sessionId: ' + sessionId); }
+		logger.info(`Join session ${sessionId}, clientId: ${remoteSocket.id}.`);
+		remoteSocket.emit('join', sessionId, socket.id);
+		socket.emit('sessionClient', sessionId, remoteSocket.id);
 	});
 });
