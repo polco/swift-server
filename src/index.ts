@@ -73,11 +73,11 @@ io.on('connection', (socket) => {
 		}
 	});
 
-	socket.on('join', (sessionId: string) => {
+	socket.on('join', (sessionId: string, userId: string) => {
 		const remoteSocket = socketPerSessionId[sessionId];
 		if (!remoteSocket) { return logger.error('unknown sessionId: ' + sessionId); }
 		logger.info(`Join session ${sessionId}, clientId: ${remoteSocket.id}.`);
-		remoteSocket.emit('join', sessionId, socket.id);
+		remoteSocket.emit('join', sessionId, socket.id, userId);
 		socket.emit('sessionClient', sessionId, remoteSocket.id);
 	});
 });
