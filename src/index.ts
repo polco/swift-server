@@ -4,9 +4,28 @@ import * as logger from 'heroku-logger';
 import * as http from 'http';
 import * as https from 'https';
 import * as SocketIO from 'socket.io';
+const parser = require('ua-parser-js');
+
+const isDev = process.env.NODE_ENV === 'development';
 
 const app = express();
-const server = process.env.NODE_ENV === 'development'
+
+const endPoint = isDev ? 'https://localhost:8080/' : 'https://polco.github.io/swift-client/' ;
+const desktopIndex = endPoint + 'mobile-index.html';
+const mobileIndex = endPoint + 'mobile-index.html';
+
+app.get('/', function(req, res) {
+	const ua = parser(req.headers['user-agent']);
+	const indexPath = endPoint + (ua.device.type === 'mobile' ? mobileIndex : desktopIndex);
+
+	res.set('Content-Type', 'text/html');
+	res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+	res.set('Expires', '-1');
+	res.set('Pragma', 'no-cache');
+	res.redirect(301, indexPath);
+});
+
+const server = isDev
 	? https.createServer({
 		ca: fs.readFileSync('./ssl/cert.pem'),
 		cert: fs.readFileSync('./ssl/cert.pem'),
@@ -27,7 +46,7 @@ const sockets: { [socketId: string]: SocketIO.Socket } = {};
 const socketPerSessionId: { [sessionId: string]: SocketIO.Socket} = {};
 const sessionIdsPerSocketId: {[socketId: string]: string[]} = {};
 
-io.on('connection', (socket) => {
+io.on('connection', function(socket) {
 	sockets[socket.id] = socket;
 	logger.info(`Client connected: ${socket.id}.`);
 
